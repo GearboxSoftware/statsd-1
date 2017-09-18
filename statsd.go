@@ -20,7 +20,6 @@ func New(opts ...Option) (*Client, error) {
 		},
 		Conn: connConfig{
 			Addr:        ":8125",
-			Ttl:         3600 * time.Second,
 			FlushPeriod: 100 * time.Millisecond,
 			// Worst-case scenario:
 			// Ethernet MTU - IPv6 Header - TCP Header = 1500 - 40 - 20 = 1440

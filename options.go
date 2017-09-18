@@ -25,7 +25,6 @@ type connConfig struct {
 	MaxPacketSize int
 	Network       string
 	TagFormat     TagFormat
-	Ttl           time.Duration
 }
 
 // An Option represents an option for a Client. It must be used as an
@@ -38,15 +37,6 @@ type Option func(*config)
 func Address(addr string) Option {
 	return Option(func(c *config) {
 		c.Conn.Addr = addr
-	})
-}
-
-// Ttl sets the timeout to reestablish the connection
-//
-// By default, "3600"
-func Ttl(ttl time.Duration) Option {
-	return Option(func(c *config) {
-		c.Conn.Ttl = ttl
 	})
 }
 
