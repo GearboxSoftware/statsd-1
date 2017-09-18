@@ -12,6 +12,7 @@ import (
 type conn struct {
 	// Fields settable with options at Client's creation.
 	addr          string
+	ttl           time.Duration
 	errorHandler  func(error)
 	flushPeriod   time.Duration
 	maxPacketSize int
@@ -29,6 +30,7 @@ type conn struct {
 func newConn(conf connConfig, muted bool) (*conn, error) {
 	c := &conn{
 		addr:          conf.Addr,
+		ttl:           conf.Ttl,
 		errorHandler:  conf.ErrorHandler,
 		flushPeriod:   conf.FlushPeriod,
 		maxPacketSize: conf.MaxPacketSize,
@@ -40,8 +42,7 @@ func newConn(conf connConfig, muted bool) (*conn, error) {
 		return c, nil
 	}
 
-	var err error
-	c.w, err = dialTimeout(c.network, c.addr, 5*time.Second)
+	err := c.reconnect()
 	if err != nil {
 		return c, err
 	}
@@ -73,6 +74,21 @@ func newConn(conf connConfig, muted bool) (*conn, error) {
 					return
 				}
 				c.flush(0)
+				c.mu.Unlock()
+			}
+		}()
+	}
+
+	if c.ttl > 0 {
+		go func() {
+			ticker := time.NewTicker(c.ttl)
+			for _ = range ticker.C {
+				c.mu.Lock()
+				if !c.closed {
+					c.w.Close()
+				}
+				c.handleError(c.reconnect())
+				c.closed = false
 				c.mu.Unlock()
 			}
 		}()
@@ -254,6 +270,12 @@ func (c *conn) flush(n int) {
 		copy(c.buf, c.buf[n:])
 	}
 	c.buf = c.buf[:len(c.buf)-n]
+}
+
+func (c *conn) reconnect() (error) {
+	var err error
+	c.w, err = dialTimeout(c.network, c.addr, 5*time.Second)
+	return err
 }
 
 func (c *conn) handleError(err error) {
